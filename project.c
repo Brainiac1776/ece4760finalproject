@@ -1,6 +1,6 @@
 /*
  * Michael Liang and Chimdi Anude
- * Implementation of Pico Says
+ * Final Project: Implementation of Pico Says
  * 
  * 
  * HARDWARE CONNECTIONXD
