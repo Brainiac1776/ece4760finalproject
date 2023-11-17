@@ -90,6 +90,11 @@
 #define UDP_MSG_LEN_MAX 1024
 #define UDP_TARGET_DESK "192.168.1.9" // desktop
 #define UDP_TARGET_BROADCAST "255.255.255.255"
+#define RED //GPIO PIN
+#define BLUE //GPIO PIN
+#define YELLOW //GPIO PIN
+#define GREEN //GPIO PIN
+
 // #define UDP_INTERVAL_MS 10 // not used
 //  should resolve to a actual addr after pairing
 char udp_target_pico[20] = "255.255.255.255";
@@ -102,7 +107,7 @@ enum packet_lengths
   data
 } packet_length = command;
 
-// =======================================
+// =======================================     
 // necessary to connect to wireless
 // !!! Do NOT post this info !!!
 #define WIFI_SSID "miko"
@@ -115,7 +120,7 @@ char recv_data[UDP_MSG_LEN_MAX];
 char send_data[UDP_MSG_LEN_MAX];
 
 // payload to led blink
-// or send to remote system
+// or send to remote system///////////////////
 int blink_time, remote_blink_time;
 // interthread communicaition
 // signal threads for sned/recv data
@@ -129,50 +134,59 @@ int mode = echo;
 // did the addresses get set up?
 int paired = false;
 // data to send over WIFI
-#define max_data_size 512
-int data_size = 512;
+#define max_data_size 16
+int data_size = 16;
 
-struct PSData = {
-    int player;
-int[16] sequence;
-int lives;
-}
-;
+struct PSData
+{
+  int player;
+  int sequence[16];
+  int lives;
+};
 
-short data_array[max_data_size] =
-    {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+struct PSData data_obj;
 
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+// short data_array[max_data_size] =
+//     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+
+
+
+
+
 // the following MUST be less than or equal to:
 // UDP_MSG_LEN_MAX
 // but for efficiency, not much smaller
@@ -414,7 +428,7 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     else if (mode == echo)
     {
       // get the binary array
-      memcpy(data_array, recv_data, send_data_size);
+      memcpy(data_obj.sequence, recv_data, send_data_size);
       // send timing ack
       memset(send_data, 0, UDP_MSG_LEN_MAX);
       sprintf(send_data, "ack");
@@ -424,13 +438,27 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
       PT_YIELD(pt);
       // print received data
       printf("got -- ");
+
       for (int i = 0; i < data_size; i++)
       {
-        printf("%d  ", data_array[i]);
+        printf("%d  ", data_obj.sequence[i]);
+        if (data_obj.sequence[i] == 1){
+          //wait 1.5 seconds
+        }
+        else if (data_obj.sequence[i] == 2){
+
+        }
+        else if (data_obj.sequence[i] == 3){
+
+        }
+        else if (data_obj.sequence[i] == 4){
+
+      }
       }
       printf("\n\r");
+
     }
-    // NEVER exit while
+    // NEVER exit while  
   } // END WHILE(1)
   PT_END(pt);
 } // recv thread
@@ -532,8 +560,8 @@ static PT_THREAD(protothread_serial(struct pt *pt))
         mode = echo;
         // zeros the array to make sure the data is
         // actually sent!
-        memset(data_array, 0, sizeof(data_array));
-        printf("%d -- zeroed data array \n\r", data_array[15]);
+        memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+        printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
       }
       else if (strcmp(arg1, "send") == 0)
         mode = send;
@@ -591,7 +619,7 @@ static PT_THREAD(protothread_serial(struct pt *pt))
       {
         // send the big data array
         memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_array, send_data_size);
+        memcpy(send_data, data_obj.sequence, send_data_size);
         packet_length = data;
         // test pairing
         printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
@@ -613,6 +641,32 @@ static PT_THREAD(protothread_serial(struct pt *pt))
 
   PT_END(pt);
 } // serial thread
+
+
+// LED Logic (adding to the sequence to send and checking if you got it right)
+static PT_THREAD (protothread_core_0(struct pt *pt))
+{    
+  //check the pervious
+  // take a life and zero the sequence when wrong
+  
+  if (RED){
+    data_obj.sequence[sizeOf(data_obj.sequence)] = 1;
+  else if (BLUE){
+    data_obj.sequence[sizeOf(data_obj.sequence)] = 2;
+  }
+  else if (YELLOW){
+    data_obj.sequence[sizeOf(data_obj.sequence)] = 3;
+  }
+  else if (GREEN){
+    data_obj.sequence[sizeOf(data_obj.sequence)] = 4;
+  }
+  
+  
+  
+  
+  PT_END(pt) ;
+}
+
 
 // ====================================================
 int main()
@@ -650,6 +704,16 @@ int main()
   //============================
   // set up UDP recenve ISR handler
   udpecho_raw_init();
+
+
+  data_obj.player = 1;
+
+  data_obj.sequence[0] = 3;
+  data_obj.sequence[1] = 4;
+  data_obj.lives = 3;
+
+
+  printf("initialized player 1");
 
   //========================================
   // start core 1 threads -- none here
