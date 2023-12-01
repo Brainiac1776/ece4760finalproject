@@ -90,10 +90,36 @@
 #define UDP_MSG_LEN_MAX 1024
 #define UDP_TARGET_DESK "192.168.1.9" // desktop
 #define UDP_TARGET_BROADCAST "255.255.255.255"
-#define RED //GPIO PIN
-#define BLUE //GPIO PIN
-#define YELLOW //GPIO PIN
-#define GREEN //GPIO PIN
+
+#define RED_BUTTON 15    // GPIO PIN
+#define BLUE_BUTTON_16   // GPIO PIN
+#define YELLOW_BUTTON 17 // GPIO PIN
+#define GREEN_BUTTON 18  // GPIO PIN
+
+void init_buttons()
+{
+  gpio_init(RED_BUTTON_PIN);
+  gpio_set_dir(RED_BUTTON_PIN, GPIO_IN);
+  gpio_pull_up(RED_BUTTON_PIN);
+
+  gpio_init(BLUE_BUTTON_PIN);
+  gpio_set_dir(BLUE_BUTTON_PIN, GPIO_IN);
+  gpio_pull_up(BLUE_BUTTON_PIN);
+
+  gpio_init(YELLOW_BUTTON_PIN);
+  gpio_set_dir(YELLOW_BUTTON_PIN, GPIO_IN);
+  gpio_pull_up(YELLOW_BUTTON_PIN);
+
+  gpio_init(GREEN_BUTTON_PIN);
+  gpio_set_dir(GREEN_BUTTON_PIN, GPIO_IN);
+  gpio_pull_up(GREEN_BUTTON_PIN);
+}
+
+// Check if a button is pressed
+int is_button_pressed(int pin)
+{
+  return gpio_get(pin) == 0;
+}
 
 // #define UDP_INTERVAL_MS 10 // not used
 //  should resolve to a actual addr after pairing
@@ -107,7 +133,7 @@ enum packet_lengths
   data
 } packet_length = command;
 
-// =======================================     
+// =======================================
 // necessary to connect to wireless
 // !!! Do NOT post this info !!!
 #define WIFI_SSID "miko"
@@ -145,47 +171,7 @@ struct PSData
 };
 
 struct PSData data_obj;
-
-
-// short data_array[max_data_size] =
-//     {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-//      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
-
-
-
-
+struct PSData received_data_obj;
 
 // the following MUST be less than or equal to:
 // UDP_MSG_LEN_MAX
@@ -264,93 +250,111 @@ void udpecho_raw_init(void)
 // sends data when signalled
 // =======================================
 
-static PT_THREAD(protothread_udp_send(struct pt *pt))
+void game_logic()
+{
+  game_init();
+
+  while (lives > 0)
+  {
+    sequenceLength = 0;
+    memset(sequence, 0, sizeof(sequence));
+
+    while (sequenceLength < MAX_SEQUENCE_LENGTH)
+    {
+      int button = check_buttons();
+      if (button != 0)
+      {
+        sequence[sequenceLength++] = button;
+      }
+    }
+
+    send_sequence();
+    receive_sequence();
+
+    if (!compare_sequences(sequence, (int *)recv_data, sequenceLength))
+    {
+      lives--;
+    }
+  }
+  printf("Game Over. Lives: %d\n", lives);
+}
+
+bool compare_sequences(const int *seq1, const int *seq2, int length1, int length2)
+{
+
+  if (length1 != length2)
+  {
+    return false;
+  }
+
+  for (int i = 0; i < length1; i++)
+  {
+    if (seq1[i] != seq2[i])
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+static PT_THREAD(protothread_signal_send(struct pt *pt))
 {
   PT_BEGIN(pt);
+
   static struct udp_pcb *pcb;
   pcb = udp_new();
   pcb->remote_port = UDP_PORT;
   pcb->local_port = UDP_PORT;
 
-  static ip_addr_t addr;
-  // ipaddr_aton(UDP_TARGET, &addr);
+  static int sequence[MAX_SEQUENCE_LENGTH];
+  static int sequenceLength = 0;
+  static int lives = INITIAL_LIVES;
+  static bool sequenceComplete;
 
-  static int counter = 0;
-
-  while (true)
+  while (1)
   {
+    sequenceLength = 0;
+    memset(sequence, 0, sizeof(sequence));
+    sequenceComplete = false;
 
-    // stall until there is actually something to send
-    PT_SEM_WAIT(pt, &new_udp_send_s);
+    while (!sequenceComplete && sequenceLength < MAX_SEQUENCE_LENGTH)
+    {
+      if (gpio_get(SEND_BUTTON_1) == 0)
+        sequence[sequenceLength++] = 1;
+      else if (gpio_get(SEND_BUTTON_2) == 0)
+        sequence[sequenceLength++] = 2;
+      else if (gpio_get(SEND_BUTTON_3) == 0)
+        sequence[sequenceLength++] = 3;
+      else if (gpio_get(SEND_BUTTON_4) == 0)
+        sequence[sequenceLength++] = 4;
 
-    // in paired mode, the two picos talk just to each other
-    // before pairing, the echo unit talks to the laptop
-    if (mode == echo)
-    {
-      if (paired == true)
-      {
-        ipaddr_aton(udp_target_pico, &addr);
-      }
-      else
-      {
-        ipaddr_aton(UDP_TARGET_DESK, &addr);
-      }
-    }
-    // broadcast mode makes sure that another pico sees the packet
-    // to sent an address and for testing
-    else if (mode == send)
-    {
-      if (paired == true)
-      {
-        ipaddr_aton(udp_target_pico, &addr);
-      }
-      else
-      {
-        ipaddr_aton(UDP_TARGET_BROADCAST, &addr);
-      }
+      if (gpio_get(END_SEQUENCE_BUTTON) == 0)
+        sequenceComplete = true;
+      PT_YIELD(pt);
     }
 
-    // get the length specified by another thread
-    int udp_send_length;
-    switch (packet_length)
-    {
-    case command:
-      udp_send_length = 32;
-      break;
-    case data:
-      udp_send_length = send_data_size;
-      break;
-    case ack:
-      udp_send_length = 5;
-      break;
-    }
+    memset(send_data, 0, UDP_MSG_LEN_MAX);
+    memcpy(send_data, sequence, sequenceLength * sizeof(int));
+    packet_length = data;
 
-    // actual data-send
-    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, udp_send_length + 1, PBUF_RAM);
-    char *req = (char *)p->payload;
-    memset(req, 0, udp_send_length + 1); //
-    memcpy(req, send_data, udp_send_length);
-    //
-    err_t er = udp_sendto(pcb, p, &addr, UDP_PORT); // port
+    PT_SEM_SIGNAL(pt, &new_udp_send_s);
+    PT_YIELD(pt);
 
-    pbuf_free(p);
-    if (er != ERR_OK)
+    if (compare_sequences(sequence, (int *)recv_data, sequenceLength))
     {
-      printf("Failed to send UDP packet! error=%d", er);
-    }
-    else
-    {
-      // printf("Sent packet %d\n", counter);
-      counter++;
+      lives--;
+      if (lives <= 0)
+      {
+        // game over
+        PT_EXIT(pt);
+      }
     }
   }
   PT_END(pt);
 }
 
-// ==================================================
-// udp recv processing
-// ==================================================
-static PT_THREAD(protothread_udp_recv(struct pt *pt))
+static PT_THREAD(protothread_signal_recv(struct pt *pt))
 {
   PT_BEGIN(pt);
   static char arg1[32], arg2[32], arg3[32], arg4[32];
@@ -361,107 +365,94 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
 
   while (1)
   {
-    // wait for new packet
-    // signalled by LWIP receive ISR
-    PT_SEM_WAIT(pt, &new_udp_recv_s);
 
-    // parse command
-    token = strtok(recv_data, "  ");
-    strcpy(arg1, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg2, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg3, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg4, token);
+    memset(received_data_obj, 0, UDP_MSG_LEN_MAX);
+    memcpy(received_data_obj, received_data_obj.sequence, send_data_size);
 
-    // is this a pairing packet (starts with IP)
-    // if so, parse address
-    // process packet to get time
-    if (strcmp(arg1, "IP") == 0)
+    sprintf(received_data_obj, "ack");
+    packet_length = ack;
+
+    PT_SEM_SIGNAL(pt, &new_udp_send_s);
+    PT_YIELD(pt);
+    printf("got -- ");
+
+    for (int i = 0; i < data_size; i++)
     {
-      if (mode == echo)
+      printf("%d  ", received_data_obj.sequence[i]);
+    }
+
+    bool sameSequence = checkSequence(data_obj.sequence, received_data_obj.sequence);
+    if (sameSequence)
+    {
+      data_obj.lives--;
+      printf("same sequence");
+    }
+    else
+    {
+      printf("different sequence");
+    }
+
+    printf("\n\r");
+    PT_YIELD(pt);
+  }
+  PT_END(pt);
+}
+
+static PT_THREAD(protothread_signal_recv(struct pt *pt))
+{
+  PT_BEGIN(pt);
+
+  static struct udp_pcb *recv_pcb;
+  static struct pbuf *p;
+  static ip_addr_t from_ip;
+  static u16_t from_port;
+
+  recv_pcb = udp_new();
+  udp_bind(recv_pcb, IP_ADDR_ANY, UDP_PORT);
+
+  while (1)
+  {
+    p = udp_recv(recv_pcb, &from_ip, &from_port, 0);
+    if (p != NULL)
+    {
+      memset(received_data_obj.sequence, 0, sizeof(received_data_obj.sequence));
+      pbuf_copy_partial(p, received_data_obj.sequence, p->tot_len, 0); // Copy data to received_data_obj.sequence
+      pbuf_free(p);                                                    // Free the packet buffer
+
+      printf("Received sequence: ");
+      for (int i = 0; i < data_size; i++)
       {
-        // if I'm the echo unit, grab the address of the other pico
-        // for the send thread to use
-        strcpy(udp_target_pico, arg2);
-        //
-        paired = true;
-        // then send back echo-unit address to send-pico
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        sprintf(send_data, "IP %s", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-        packet_length = command;
-        // local effects
-        printf("sent back IP %s\n\r", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-        blink_time = 500;
-        // tell send threead
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        PT_YIELD(pt);
+        printf("%d ", received_data_obj.sequence[i]);
+      }
+      printf("\n");
+
+      if (!compare_sequences(data_obj.sequence, received_data_obj.sequence, MAX_SEQUENCE_LENGTH, data_size))
+      {
+        printf("Incorrect sequence\n");
+        data_obj.lives--;
+        if (data_obj.lives <= 0)
+        {
+          printf("Game Over\n");
+        }
       }
       else
       {
-        // if I'm the send unit, then just save for future transmit
-        strcpy(udp_target_pico, arg2);
-      }
-    } // end  if(strcmp(arg1,"IP")==0)
-
-    // is it ack packet ?
-    else if (strcmp(arg1, "ack") == 0)
-    {
-      if (mode == send)
-      {
-        // print a long-long 64 bit int
-        printf("%lld usec ack\n\r", PT_GET_TIME_usec() - time1);
-      }
-      if (mode == echo)
-      {
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        sprintf(send_data, "ack");
-        packet_length = ack;
-        // tell send threead
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        PT_YIELD(pt);
+        printf("Correct sequence\n");
       }
     }
-
-    // if not a command, then unformatted data
-    else if (mode == echo)
+    else
     {
-      // get the binary array
-      memcpy(data_obj.sequence, recv_data, send_data_size);
-      // send timing ack
-      memset(send_data, 0, UDP_MSG_LEN_MAX);
-      sprintf(send_data, "ack");
-      packet_length = ack;
-      // tell send threead
-      PT_SEM_SIGNAL(pt, &new_udp_send_s);
-      PT_YIELD(pt);
-      // print received data
-      printf("got -- ");
-
-      for (int i = 0; i < data_size; i++)
-      {
-        printf("%d  ", data_obj.sequence[i]);
-        if (data_obj.sequence[i] == 1){
-          //wait 1.5 seconds
-        }
-        else if (data_obj.sequence[i] == 2){
-
-        }
-        else if (data_obj.sequence[i] == 3){
-
-        }
-        else if (data_obj.sequence[i] == 4){
-
-      }
-      }
-      printf("\n\r");
-
+      printf("No data received or error in reception\n");
     }
-    // NEVER exit while  
-  } // END WHILE(1)
+
+    sprintf(received_data_obj, "ack");
+    packet_length = ack;
+    PT_SEM_SIGNAL(pt, &new_udp_send_s);
+
+    PT_YIELD(pt);
+  }
   PT_END(pt);
-} // recv thread
+}
 
 // ==================================================
 // toggle cyw43 LED
@@ -640,33 +631,7 @@ static PT_THREAD(protothread_serial(struct pt *pt))
   } // END WHILE(1)
 
   PT_END(pt);
-} // serial thread
-
-
-// LED Logic (adding to the sequence to send and checking if you got it right)
-static PT_THREAD (protothread_core_0(struct pt *pt))
-{    
-  //check the pervious
-  // take a life and zero the sequence when wrong
-  
-  if (RED){
-    data_obj.sequence[sizeOf(data_obj.sequence)] = 1;
-  else if (BLUE){
-    data_obj.sequence[sizeOf(data_obj.sequence)] = 2;
-  }
-  else if (YELLOW){
-    data_obj.sequence[sizeOf(data_obj.sequence)] = 3;
-  }
-  else if (GREEN){
-    data_obj.sequence[sizeOf(data_obj.sequence)] = 4;
-  }
-  
-  
-  
-  
-  PT_END(pt) ;
 }
-
 
 // ====================================================
 int main()
@@ -674,6 +639,8 @@ int main()
   // =======================
   // init the serial
   stdio_init_all();
+
+  init_buttons();
 
   // =======================
   // init the wifi network
@@ -705,27 +672,14 @@ int main()
   // set up UDP recenve ISR handler
   udpecho_raw_init();
 
-
   data_obj.player = 1;
 
   data_obj.sequence[0] = 3;
   data_obj.sequence[1] = 4;
   data_obj.lives = 3;
 
-
   printf("initialized player 1");
 
-  //========================================
-  // start core 1 threads -- none here
-  // multicore_reset_core1();
-  // multicore_launch_core1(&core1_main);
-
-  // === config threads ========================
-  // for core 0
-
-  // init the thread control semaphores
-  // for the send/receive
-  // recv semaphone is set by an ISR
   PT_SEM_INIT(&new_udp_send_s, 0);
   PT_SEM_INIT(&new_udp_recv_s, 0);
 
@@ -733,8 +687,10 @@ int main()
   //  note that the ORDER of adding the threads is
   //  important here for perfromance with the async
   //  WIFI interface
-  pt_add_thread(protothread_udp_recv);
-  pt_add_thread(protothread_udp_send);
+  // pt_add_thread(protothread_udp_recv);
+  // pt_add_thread(protothread_udp_send);
+  pt_add_thread(protothread_signal_send);
+  pt_add_thread(protothread_signal_recv);
   pt_add_thread(protothread_toggle_cyw43);
   pt_add_thread(protothread_serial);
   //
