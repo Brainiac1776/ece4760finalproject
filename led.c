@@ -1,6 +1,7 @@
 // led.c
 #include "led.h"
 #include "pico/stdlib.h"
+#include <stdio.h>
 
 void init_leds()
 {
@@ -18,11 +19,10 @@ void init_leds()
 }
 
 ;
-int light_led(int pin)
+void light_led(int pin)
 {
     gpio_put(pin, 1);
     sleep_ms(1000);
     gpio_put(pin, 0);
     sleep_ms(1000);
-    return 0;
 }
