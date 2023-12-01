@@ -84,6 +84,9 @@
 #include "lwip/dns.h"
 #include "lwip/netif.h"
 
+#include "button.h"
+#include "led.h"
+
 // ======================================
 // udp constants
 #define UDP_PORT 4444
@@ -91,28 +94,8 @@
 #define UDP_TARGET_DESK "192.168.1.9" // desktop
 #define UDP_TARGET_BROADCAST "255.255.255.255"
 
-#define RED_BUTTON 15    // GPIO PIN
-#define BLUE_BUTTON_16   // GPIO PIN
-#define YELLOW_BUTTON 17 // GPIO PIN
-#define GREEN_BUTTON 18  // GPIO PIN
-
 void init_buttons()
 {
-  gpio_init(RED_BUTTON_PIN);
-  gpio_set_dir(RED_BUTTON_PIN, GPIO_IN);
-  gpio_pull_up(RED_BUTTON_PIN);
-
-  gpio_init(BLUE_BUTTON_PIN);
-  gpio_set_dir(BLUE_BUTTON_PIN, GPIO_IN);
-  gpio_pull_up(BLUE_BUTTON_PIN);
-
-  gpio_init(YELLOW_BUTTON_PIN);
-  gpio_set_dir(YELLOW_BUTTON_PIN, GPIO_IN);
-  gpio_pull_up(YELLOW_BUTTON_PIN);
-
-  gpio_init(GREEN_BUTTON_PIN);
-  gpio_set_dir(GREEN_BUTTON_PIN, GPIO_IN);
-  gpio_pull_up(GREEN_BUTTON_PIN);
 }
 
 // Check if a button is pressed
@@ -156,6 +139,7 @@ struct pt_sem new_udp_recv_s, new_udp_send_s;
 // both units default to echo
 #define echo 0
 #define send 1
+
 int mode = echo;
 // did the addresses get set up?
 int paired = false;
@@ -163,15 +147,25 @@ int paired = false;
 #define max_data_size 16
 int data_size = 16;
 
+#define SEQUENCE_LENGTH 16
+
 struct PSData
 {
   int player;
-  int sequence[16];
+  int sequence[SEQUENCE_LENGTH];
   int lives;
 };
 
 struct PSData data_obj;
 struct PSData received_data_obj;
+
+enum LEDPinMap
+{
+  RED = 1,
+  GREEN = 2,
+  BLUE = 3,
+  YELLOW = 4
+};
 
 // the following MUST be less than or equal to:
 // UDP_MSG_LEN_MAX
@@ -249,6 +243,33 @@ void udpecho_raw_init(void)
 // UDP send thead
 // sends data when signalled
 // =======================================
+
+void sequenceLED(int seq)
+{
+  switch (seq)
+  {
+    case(RED) {
+      light_led(RED_LED_PIN);
+      break;
+    }
+    case(GREEN) {
+      light_led(GREEN_LED_PIN);
+      break;
+    }
+    case(YELLOW) {
+      light_led(YELLOW_LED_PIN);
+      break;
+    }
+    case(BLUE) {
+      light_led(BLUE_LED_PIN);
+      break;
+    }
+  };
+  sleep_ms(500);
+}
+
+
+
 
 void game_logic()
 {
@@ -379,6 +400,7 @@ static PT_THREAD(protothread_signal_recv(struct pt *pt))
     for (int i = 0; i < data_size; i++)
     {
       printf("%d  ", received_data_obj.sequence[i]);
+      sequenceLED(received_data_obj.sequence[i])
     }
 
     bool sameSequence = checkSequence(data_obj.sequence, received_data_obj.sequence);
@@ -673,7 +695,6 @@ int main()
   udpecho_raw_init();
 
   data_obj.player = 1;
-
   data_obj.sequence[0] = 3;
   data_obj.sequence[1] = 4;
   data_obj.lives = 3;

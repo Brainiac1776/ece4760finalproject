@@ -6,4 +6,4 @@
 
 // Function declarations
 void init_buttons();
-int check_buttons();
+int check_buttons(int pin);
