@@ -302,6 +302,7 @@ bool compare_sequences(const int *seq1, const int *seq2)
 
 #define INITIAL_LIVES 3
 static int lives = INITIAL_LIVES;
+static int otherLives = INITIAL_LIVES;
 
 // =======================================
 // UDP send thead
@@ -472,7 +473,7 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     else if (mode == echo)
     {
       // get the binary array
-      memcpy(data_array, recv_data, send_data_size);
+      memcpy(send_data, recv_data, send_data_size);
       // send timing ack
       memset(send_data, 0, UDP_MSG_LEN_MAX);
       sprintf(send_data, "ack");
@@ -487,6 +488,22 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
         printf("%d  ", received_data_obj.sequence[i]);
         sequenceLED(received_data_obj.sequence[i]);
       }
+
+      // i think here we can check if data received shows that the opponent didn't get it correct
+      if (received_data_obj[0] == 0) // incorrect sequence
+      {
+
+        otherLives--;
+        // reset send sequence
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        memcpy(send_data, data_obj.sequence, send_data_size);
+      }
+
+      // regardless we need to switch roles and send data
+
+      // set to send mode
+      mode = send;
+
       printf("\n\r");
     }
     // NEVER exit while
@@ -888,13 +905,13 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
     if (!compare_sequences(data_obj.sequence, (int *)recv_data, sequenceLength))
     {
       lives--;
-      printf("")
 
-          // zero the sent data array to show that user entered sequence incorrectly
-          memset(received_data_obj.sequence, 0, sizeof(received_data_obj.sequence));
-      printf("%d -- zeroed data array \n\r", received_data_obj.sequence[15]);
+      // zero the sent data array to show that user entered sequence incorrectly
+      memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+      printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
     }
 
+    mode = send; // ensure in send mode
     // send the big data array
     memset(send_data, 0, UDP_MSG_LEN_MAX);
     memcpy(send_data, data_obj.sequence, send_data_size);
@@ -910,8 +927,8 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
 
     // zeros the array to make sure the data is
     // actually sent!
-    memset(received_data_obj.sequence, 0, sizeof(received_data_obj.sequence));
-    printf("%d -- zeroed data array \n\r", received_data_obj.sequence[15]);
+    memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+    printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
   }
 
   PT_END(pt);
