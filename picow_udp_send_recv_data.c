@@ -86,6 +86,20 @@
 
 #include "button.h"
 #include "led.h"
+// #include "RED.h"
+// #include "BLUE.h"
+// #include "GREEN.h"
+// #include "YELLOW.h"
+
+
+// ==================
+// SPI configurations 
+#define PIN_MISO 4
+#define PIN_CS 5
+#define PIN_SCK 6
+#define PIN_MOSI 7
+#define LDAC  8
+#define SPI_PORT spi0
 
 // ======================================
 // udp constants
@@ -490,7 +504,7 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
       }
 
       // i think here we can check if data received shows that the opponent didn't get it correct
-      if (received_data_obj[0] == 0) // incorrect sequence
+      if (received_data_obj.sequence[0] == 0) // incorrect sequence
       {
 
         otherLives--;
@@ -660,25 +674,6 @@ static PT_THREAD(protothread_serial(struct pt *pt))
         printf("No ack in recv mode -- set send\n");
     }
 
-    // send an array to the other pico
-    else if (strcmp(cmd, "send") == 0)
-    {
-      if (mode == send)
-      {
-        // send the big data array
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_obj.sequence, send_data_size);
-        packet_length = data;
-        // test pairing
-        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
-        // trigger send threead
-        time1 = PT_GET_TIME_usec();
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        PT_YIELD(pt);
-      }
-      else
-        printf("No send in recv mode -- set send\n");
-    }
 
     // no valid command
     else
@@ -690,183 +685,16 @@ static PT_THREAD(protothread_serial(struct pt *pt))
   PT_END(pt);
 }
 
-// ==================================================
-// toggle cyw43 LED
-// this is really just a test of multitasking
-// compatability with LWIP
-// but also reads out pair status
-// ==================================================
-static PT_THREAD(protothread_toggle_cyw43(struct pt *pt))
-{
-  PT_BEGIN(pt);
-  static bool LED_state = false;
-  //
-  // data structure for interval timer
-  PT_INTERVAL_INIT();
-  // set some default blink time
-  blink_time = 100;
-  // echo the default time to udp connection
-  // PT_SEM_SIGNAL(pt, &new_udp_send_s) ;
 
-  while (1)
-  {
-    // force a context switch of there is data to send
-    if (&new_udp_send_s.count)
-      PT_YIELD(pt);
-    //
-    LED_state = !LED_state;
-    // the onboard LED is attached to the wifi module
-    cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, LED_state);
-    // blink time is modifed by the udp recv thread
-    PT_YIELD_INTERVAL(blink_time * 1000);
-    //
-    // NEVER exit while
-  } // END WHILE(1)
-  PT_END(pt);
-} // blink thread
-
-// =================================================
-// command thread
-// =================================================
-static PT_THREAD(protothread_serial(struct pt *pt))
-{
-  PT_BEGIN(pt);
-  static char cmd[16], arg1[16], arg2[16], arg3[16], arg4[16], arg5[16], arg6[16];
-  static char *token;
-  //
-  printf("Type 'help' for commands\n\r");
-
-  while (1)
-  {
-    // the yield time is not strictly necessary for protothreads
-    // but gives a little slack for the async processes
-    // so that the output is in the correct order (most of the time)
-    PT_YIELD_usec(100000);
-
-    // print prompt
-    sprintf(pt_serial_out_buffer, "cmd> ");
-    // spawn a thread to do the non-blocking write
-    serial_write;
-
-    // spawn a thread to do the non-blocking serial read
-    serial_read;
-    // tokenize
-    token = strtok(pt_serial_in_buffer, "  ");
-    strcpy(cmd, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg1, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg2, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg3, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg4, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg5, token);
-    token = strtok(NULL, "  ");
-    strcpy(arg6, token);
-
-    // parse by command
-    if (strcmp(cmd, "help") == 0)
-    {
-      // commands
-      printf("set mode [send, recv]\n\r");
-      printf("send \n\r");
-      printf("pair \n\r");
-      printf("ack \n\r");
-      // printf("data array_size \n\r");
-      //
-      //  need start data and end data commands
+int getSequenceLength(const int *seq) {
+  int length = 0;
+  for (int i=0; i < MAX_SEQUENCE_LENGTH; i++) {
+    if (seq[i] == 0) {
+      return length;
     }
-
-    // set the unit mode
-    else if (strcmp(cmd, "set") == 0)
-    {
-      if (strcmp(arg1, "recv") == 0)
-      {
-        mode = echo;
-        // zeros the array to make sure the data is
-        // actually sent!
-        memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
-        printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
-      }
-      else if (strcmp(arg1, "send") == 0)
-        mode = send;
-      else
-        printf("bad mode");
-      // printf("%d\n", mode);
-    }
-
-    // else if(strcmp(cmd,"data")==0){
-    //  sscanf(arg1, "%d", data_array+1);
-    //}
-
-    // identify other pico on the same subnet
-    else if (strcmp(cmd, "pair") == 0)
-    {
-      if (mode == send)
-      {
-        // broadcast sender's IP addr
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        sprintf(send_data, "IP %s", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-        packet_length = command;
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        // diagnostics:
-        printf("send IP %s\n", ip4addr_ntoa(netif_ip4_addr(netif_list)));
-        // boradcast until paired
-        printf("sendto IP %s\n", udp_target_pico);
-        // probably shoulld be some error checking here
-        paired = true;
-      }
-      else
-        printf("No pairing in recv mode -- set send\n");
-    }
-
-    // send ack packet
-    else if (strcmp(cmd, "ack") == 0)
-    {
-      if (mode == send)
-      {
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        sprintf(send_data, "ack");
-        packet_length = ack;
-        time1 = PT_GET_TIME_usec();
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        // yield so that send thread gets faster access
-        PT_YIELD(pt);
-      }
-      else
-        printf("No ack in recv mode -- set send\n");
-    }
-
-    // send an array to the other pico
-    else if (strcmp(cmd, "send") == 0)
-    {
-      if (mode == send)
-      {
-        // send the big data array
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_obj.sequence, send_data_size);
-        packet_length = data;
-        // test pairing
-        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
-        // trigger send threead
-        time1 = PT_GET_TIME_usec();
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        PT_YIELD(pt);
-      }
-      else
-        printf("No send in recv mode -- set send\n");
-    }
-
-    // no valid command
-    else
-      printf("Huh? Type help. \n\r");
-
-    // NEVER exit while
-  } // END WHILE(1)
-
-  PT_END(pt);
+    length++;
+  }
+  return length;
 }
 
 // thread to signal button presses to signal wireless transmission of data
@@ -874,61 +702,73 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
 {
   PT_BEGIN(pt);
 
-  while (mode == send)
+ 
+  while (1)
   {
-    printf("gets here");
-    if (gpio_get(RED_BUTTON_PIN) == 0)
-    {
-      data_obj.sequence[sequenceLength++] = 1;
-      light_led(RED_LED_PIN);
-    }
-    else if (gpio_get(GREEN_BUTTON_PIN) == 0)
-    {
-      data_obj.sequence[sequenceLength++] = 2;
-      light_led(GREEN_LED_PIN);
-    }
-    else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
-    {
-      data_obj.sequence[sequenceLength++] = 3;
-      light_led(YELLOW_LED_PIN);
-    }
-    else if (gpio_get(BLUE_BUTTON_PIN) == 0)
-    {
-      data_obj.sequence[sequenceLength++] = 4;
-      light_led(BLUE_LED_PIN);
-    }
+    if (mode == send){
 
-    // if (gpio_get(END_SEQUENCE_BUTTON) == 0)
-    //   sequenceComplete = true;
-    PT_YIELD(pt);
-    // once sequence is added, check itself whether it sent the right seq
-    if (!compare_sequences(data_obj.sequence, (int *)recv_data, sequenceLength))
-    {
-      lives--;
 
-      // zero the sent data array to show that user entered sequence incorrectly
-      memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
-      printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
+      bool button_clicked = false;
+      int sequenceLength = getSequenceLength(data_obj.sequence);
+
+      // printf("seq length: %d", sequenceLength);
+      if (gpio_get(RED_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength] = 1;
+        light_led(RED_LED_PIN);
+        button_clicked = true;
+      }
+      else if (gpio_get(GREEN_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength] = 2;
+        light_led(GREEN_LED_PIN);
+        button_clicked = true;
+      }
+      else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength] = 3;
+        light_led(YELLOW_LED_PIN);
+        button_clicked = true;
+      }
+      else if (gpio_get(BLUE_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength] = 4;
+        light_led(BLUE_LED_PIN);
+        button_clicked = true;
+      }
+
+        // if (gpio_get(END_SEQUENCE_BUTTON) == 0)
+        //   sequenceComplete = true;
+      PT_YIELD(pt);
+
+      if (button_clicked == true) {
+        // once sequence is added, check itself whether it sent the right seq
+        if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
+        {
+          lives--;
+
+          // zero the sent data array to show that user entered sequence incorrectly
+          memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+          printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
+        }
+        printf("sending sequence data\n");
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        memcpy(send_data, data_obj.sequence, send_data_size);
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        // trigger send threead
+        time1 = PT_GET_TIME_usec();
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+
+        mode = echo; // set to receive mode after sending data
+
+      }
+     
     }
-
-    mode = send; // ensure in send mode
-    // send the big data array
-    memset(send_data, 0, UDP_MSG_LEN_MAX);
-    memcpy(send_data, data_obj.sequence, send_data_size);
-    packet_length = data;
-    // test pairing
-    printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
-    // trigger send threead
-    time1 = PT_GET_TIME_usec();
-    PT_SEM_SIGNAL(pt, &new_udp_send_s);
-    PT_YIELD(pt);
-
-    mode = echo; // set to receive mode after sending data
-
-    // zeros the array to make sure the data is
-    // actually sent!
-    memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
-    printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
   }
 
   PT_END(pt);
@@ -949,6 +789,21 @@ int main()
   light_led(GREEN_LED_PIN);
   light_led(YELLOW_LED_PIN);
   light_led(RED_LED_PIN);
+
+
+  // =====================================
+  // initizalize the DAC and SPI
+  // 
+  // spi_init(SPI_PORT, 20000000);
+  //spi_set_format(SPI_PORT, 16, 0, 0, 0);
+  //gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+  //gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
+  //gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+  //gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
+
+  //gpio_init(LDAC);
+  //gpio_set_dir(LDAC, GPIO_OUT);
+  //gpio_put(LDAC, 0);
 
   // =======================
   // init the wifi network
