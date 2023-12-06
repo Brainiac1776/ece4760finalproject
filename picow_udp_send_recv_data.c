@@ -274,7 +274,6 @@ void sequenceLED(int seq)
   sleep_ms(500);
 }
 
-
 bool compare_sequences(const int *seq1, const int *seq2)
 {
 
@@ -481,7 +480,6 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
       // i think here we can check if data received shows that the opponent didn't get it correct
       if (received_data_obj.sequence[0] == 0) // incorrect sequence
       {
-
         otherLives--;
         // reset send sequence
         memset(send_data, 0, UDP_MSG_LEN_MAX);
@@ -659,6 +657,14 @@ static PT_THREAD(protothread_serial(struct pt *pt))
   PT_END(pt);
 }
 
+void resetSequence(const int *seq)
+{
+  for (int i = 0; i < MAX_SEQUENCE_LENGTH; i++)
+  {
+    seq[i] = 0;
+  }
+}
+
 int getSequenceLength(const int *seq)
 {
   int length = 0;
@@ -683,48 +689,51 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
   {
     if (mode == send)
     {
-      bool button_clicked = false;
+      bool send_signal = false;
       int sequenceLength = getSequenceLength(data_obj.sequence);
       /**
       unsigned long current_time = millis(); // Assuming you have a function to get current time in milliseconds
 
       // Check for button press with debouncing
-      
+
       if (current_time - last_button_press_time > DEBOUNCE_TIME)
       {
         */
-        if (gpio_get(RED_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength + 1] = 1;
-          light_led(RED_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(GREEN_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength + 1] = 2;
-          light_led(GREEN_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength + 1] = 3;
-          light_led(YELLOW_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(BLUE_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength + 1] = 4;
-          light_led(BLUE_LED_PIN);
-          button_clicked = true;
-        }
+      if (gpio_get(RED_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength + 1] = 1;
+        light_led(RED_LED_PIN);
+      }
+      else if (gpio_get(GREEN_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength + 1] = 2;
+        light_led(GREEN_LED_PIN);
+      }
+      else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength + 1] = 3;
+        light_led(YELLOW_LED_PIN);
+      }
+      else if (gpio_get(BLUE_BUTTON_PIN) == 0)
+      {
+        data_obj.sequence[sequenceLength + 1] = 4;
+        light_led(BLUE_LED_PIN);
+      }
 
-        // if (button_clicked)
-        // {
-        //   last_button_press_time = current_time;
-        // }
-      
+      // Check for the state of the reset and send buttons
+      if (gpio_get(RESET_BUTTON_PIN) == 0)
+      {
+        // Reset the entire sequence being sent
+        resetSequence(data_obj.sequence);
+      }
+      else if (gpio_get(SEND_BUTTON_PIN) == 0)
+      {
+        // Allow the data to be sent
+        send_signal = true;
+      }
+
       // Only proceed to send data if a button has been clicked
-      if (button_clicked)
+      if (send_signal)
       {
         // once sequence is added, check itself whether it sent the right seq
         if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
@@ -765,7 +774,7 @@ int main()
   // =======================
   // init the serial
   stdio_init_all();
-  //initVGA();
+  // initVGA();
 
   init_buttons();
   init_leds();
