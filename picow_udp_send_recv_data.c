@@ -91,14 +91,13 @@
 // #include "GREEN.h"
 // #include "YELLOW.h"
 
-
 // ==================
-// SPI configurations 
+// SPI configurations
 #define PIN_MISO 4
 #define PIN_CS 5
 #define PIN_SCK 6
 #define PIN_MOSI 7
-#define LDAC  8
+#define LDAC 8
 #define SPI_PORT spi0
 
 // ======================================
@@ -674,7 +673,6 @@ static PT_THREAD(protothread_serial(struct pt *pt))
         printf("No ack in recv mode -- set send\n");
     }
 
-
     // no valid command
     else
       printf("Huh? Type help. \n\r");
@@ -685,11 +683,13 @@ static PT_THREAD(protothread_serial(struct pt *pt))
   PT_END(pt);
 }
 
-
-int getSequenceLength(const int *seq) {
+int getSequenceLength(const int *seq)
+{
   int length = 0;
-  for (int i=0; i < MAX_SEQUENCE_LENGTH; i++) {
-    if (seq[i] == 0) {
+  for (int i = 0; i < MAX_SEQUENCE_LENGTH; i++)
+  {
+    if (seq[i] == 0)
+    {
       return length;
     }
     length++;
@@ -702,11 +702,10 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
 {
   PT_BEGIN(pt);
 
- 
   while (1)
   {
-    if (mode == send){
-
+    if (mode == send)
+    {
 
       bool button_clicked = false;
       int sequenceLength = getSequenceLength(data_obj.sequence);
@@ -724,24 +723,13 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         light_led(GREEN_LED_PIN);
         button_clicked = true;
       }
-      else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
-      {
-        data_obj.sequence[sequenceLength] = 3;
-        light_led(YELLOW_LED_PIN);
-        button_clicked = true;
-      }
-      else if (gpio_get(BLUE_BUTTON_PIN) == 0)
-      {
-        data_obj.sequence[sequenceLength] = 4;
-        light_led(BLUE_LED_PIN);
-        button_clicked = true;
-      }
 
-        // if (gpio_get(END_SEQUENCE_BUTTON) == 0)
-        //   sequenceComplete = true;
+      // if (gpio_get(END_SEQUENCE_BUTTON) == 0)
+      //   sequenceComplete = true;
       PT_YIELD(pt);
 
-      if (button_clicked == true) {
+      if (button_clicked == true)
+      {
         // once sequence is added, check itself whether it sent the right seq
         if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
         {
@@ -765,10 +753,90 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         PT_YIELD(pt);
 
         mode = echo; // set to receive mode after sending data
-
       }
-     
     }
+  }
+
+  PT_END(pt);
+}
+
+// Thread to handle button presses and signal data transmission
+static PT_THREAD(protothread_signal_button(struct pt *pt))
+{
+  PT_BEGIN(pt);
+
+  static unsigned long last_button_press_time = 0;
+  while (1)
+  {
+    if (mode == send)
+    {
+      bool button_clicked = false;
+      int sequenceLength = getSequenceLength(data_obj.sequence);
+      unsigned long current_time = millis(); // Assuming you have a function to get current time in milliseconds
+
+      // Check for button press with debouncing
+      if (current_time - last_button_press_time > DEBOUNCE_TIME)
+      {
+        if (gpio_get(RED_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength] = 1;
+          light_led(RED_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(GREEN_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength] = 2;
+          light_led(GREEN_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength] = 3;
+          light_led(YELLOW_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(BLUE_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength] = 4;
+          light_led(BLUE_LED_PIN);
+          button_clicked = true;
+        }
+
+        if (button_clicked)
+        {
+          last_button_press_time = current_time;
+        }
+      }
+
+      // Only proceed to send data if a button has been clicked
+      if (button_clicked)
+      {
+        // once sequence is added, check itself whether it sent the right seq
+        if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
+        {
+          lives--;
+
+          // zero the sent data array to show that user entered sequence incorrectly
+          memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+          printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
+        }
+        printf("sending sequence data\n")
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        memcpy(send_data, data_obj.sequence, send_data_size);
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        // trigger send threead
+        time1 = PT_GET_TIME_usec();
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+
+        mode = echo;
+      }
+    }
+    PT_YIELD(pt);
   }
 
   PT_END(pt);
@@ -790,20 +858,19 @@ int main()
   light_led(YELLOW_LED_PIN);
   light_led(RED_LED_PIN);
 
-
   // =====================================
   // initizalize the DAC and SPI
-  // 
+  //
   // spi_init(SPI_PORT, 20000000);
-  //spi_set_format(SPI_PORT, 16, 0, 0, 0);
-  //gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
-  //gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
-  //gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
-  //gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
+  // spi_set_format(SPI_PORT, 16, 0, 0, 0);
+  // gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+  // gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
+  // gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+  // gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
 
-  //gpio_init(LDAC);
-  //gpio_set_dir(LDAC, GPIO_OUT);
-  //gpio_put(LDAC, 0);
+  // gpio_init(LDAC);
+  // gpio_set_dir(LDAC, GPIO_OUT);
+  // gpio_put(LDAC, 0);
 
   // =======================
   // init the wifi network
