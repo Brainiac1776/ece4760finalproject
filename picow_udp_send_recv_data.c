@@ -86,6 +86,7 @@
 
 #include "button.h"
 #include "led.h"
+#include "vga_graphics.h"
 // #include "RED.h"
 // #include "BLUE.h"
 // #include "GREEN.h"
@@ -153,6 +154,8 @@ int data_size = 16;
 #define SEQUENCE_LENGTH 16
 #define MAX_SEQUENCE_LENGTH 32
 
+#define DEBOUNCE_TIME 500
+
 struct PSData
 {
   int player;
@@ -165,10 +168,10 @@ struct PSData received_data_obj;
 
 enum LEDPinMap
 {
-  RED = 1,
-  BLUE = 4,
-  YELLOW = 3,
-  GREEN = 2
+  RED_LED = 1,
+  BLUE_LED = 4,
+  YELLOW_LED = 3,
+  GREEN_LED = 2
 };
 
 // the following MUST be less than or equal to:
@@ -252,52 +255,25 @@ void sequenceLED(int seq)
 {
   switch (seq)
   {
-  case (RED):
+  case (RED_LED):
     light_led(RED_LED_PIN);
     break;
 
-  case (GREEN):
+  case (GREEN_LED):
     light_led(GREEN_LED_PIN);
     break;
 
-  case (YELLOW):
+  case (YELLOW_LED):
     light_led(YELLOW_LED_PIN);
     break;
 
-  case (BLUE):
+  case (BLUE_LED):
     light_led(BLUE_LED_PIN);
     break;
   };
   sleep_ms(500);
 }
 
-// void game_logic()
-// {
-
-//   while (data_obj.lives > 0)
-//   {
-//     data_obj.sequence = 0;
-//     memset(sequence, 0, sizeof(sequence));
-
-//     while (data_obj.sequence < MAX_SEQUENCE_LENGTH)
-//     {
-//       int button = check_buttons();
-//       if (button != 0)
-//       {
-//         sequence[sequenceLength++] = button;
-//       }
-//     }
-
-//     send_sequence();
-//     receive_sequence();
-
-//     if (!compare_sequences(sequence, (int *)recv_data, sequenceLength))
-//     {
-//       lives--;
-//     }
-//   }
-//   printf("Game Over. Lives: %d\n", lives);
-// }
 
 bool compare_sequences(const int *seq1, const int *seq2)
 {
@@ -486,7 +462,7 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     else if (mode == echo)
     {
       // get the binary array
-      memcpy(send_data, recv_data, send_data_size);
+      memcpy(received_data_obj.sequence, recv_data, send_data_size);
       // send timing ack
       memset(send_data, 0, UDP_MSG_LEN_MAX);
       sprintf(send_data, "ack");
@@ -621,7 +597,7 @@ static PT_THREAD(protothread_serial(struct pt *pt))
         mode = echo;
         // zeros the array to make sure the data is
         // actually sent!
-        memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+        memset(send_data, 0, sizeof(data_obj.sequence));
         printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
       }
       else if (strcmp(arg1, "send") == 0)
@@ -697,38 +673,58 @@ int getSequenceLength(const int *seq)
   return length;
 }
 
-// thread to signal button presses to signal wireless transmission of data
+// Thread to handle button presses and signal data transmission
 static PT_THREAD(protothread_signal_button(struct pt *pt))
 {
   PT_BEGIN(pt);
 
+  static unsigned long last_button_press_time = 0;
   while (1)
   {
     if (mode == send)
     {
-
       bool button_clicked = false;
       int sequenceLength = getSequenceLength(data_obj.sequence);
+      /**
+      unsigned long current_time = millis(); // Assuming you have a function to get current time in milliseconds
 
-      // printf("seq length: %d", sequenceLength);
-      if (gpio_get(RED_BUTTON_PIN) == 0)
+      // Check for button press with debouncing
+      
+      if (current_time - last_button_press_time > DEBOUNCE_TIME)
       {
-        data_obj.sequence[sequenceLength] = 1;
-        light_led(RED_LED_PIN);
-        button_clicked = true;
-      }
-      else if (gpio_get(GREEN_BUTTON_PIN) == 0)
-      {
-        data_obj.sequence[sequenceLength] = 2;
-        light_led(GREEN_LED_PIN);
-        button_clicked = true;
-      }
+        */
+        if (gpio_get(RED_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength + 1] = 1;
+          light_led(RED_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(GREEN_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength + 1] = 2;
+          light_led(GREEN_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength + 1] = 3;
+          light_led(YELLOW_LED_PIN);
+          button_clicked = true;
+        }
+        else if (gpio_get(BLUE_BUTTON_PIN) == 0)
+        {
+          data_obj.sequence[sequenceLength + 1] = 4;
+          light_led(BLUE_LED_PIN);
+          button_clicked = true;
+        }
 
-      // if (gpio_get(END_SEQUENCE_BUTTON) == 0)
-      //   sequenceComplete = true;
-      PT_YIELD(pt);
-
-      if (button_clicked == true)
+        // if (button_clicked)
+        // {
+        //   last_button_press_time = current_time;
+        // }
+      
+      // Only proceed to send data if a button has been clicked
+      if (button_clicked)
       {
         // once sequence is added, check itself whether it sent the right seq
         if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
@@ -736,7 +732,7 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
           lives--;
 
           // zero the sent data array to show that user entered sequence incorrectly
-          memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
+          memset(send_data, 0, sizeof(data_obj.sequence));
           printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
         }
         printf("sending sequence data\n");
@@ -752,88 +748,9 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         PT_SEM_SIGNAL(pt, &new_udp_send_s);
         PT_YIELD(pt);
 
-        mode = echo; // set to receive mode after sending data
-      }
-    }
-  }
-
-  PT_END(pt);
-}
-
-// Thread to handle button presses and signal data transmission
-static PT_THREAD(protothread_signal_button(struct pt *pt))
-{
-  PT_BEGIN(pt);
-
-  static unsigned long last_button_press_time = 0;
-  while (1)
-  {
-    if (mode == send)
-    {
-      bool button_clicked = false;
-      int sequenceLength = getSequenceLength(data_obj.sequence);
-      unsigned long current_time = millis(); // Assuming you have a function to get current time in milliseconds
-
-      // Check for button press with debouncing
-      if (current_time - last_button_press_time > DEBOUNCE_TIME)
-      {
-        if (gpio_get(RED_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength] = 1;
-          light_led(RED_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(GREEN_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength] = 2;
-          light_led(GREEN_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength] = 3;
-          light_led(YELLOW_LED_PIN);
-          button_clicked = true;
-        }
-        else if (gpio_get(BLUE_BUTTON_PIN) == 0)
-        {
-          data_obj.sequence[sequenceLength] = 4;
-          light_led(BLUE_LED_PIN);
-          button_clicked = true;
-        }
-
-        if (button_clicked)
-        {
-          last_button_press_time = current_time;
-        }
-      }
-
-      // Only proceed to send data if a button has been clicked
-      if (button_clicked)
-      {
-        // once sequence is added, check itself whether it sent the right seq
-        if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
-        {
-          lives--;
-
-          // zero the sent data array to show that user entered sequence incorrectly
-          memset(data_obj.sequence, 0, sizeof(data_obj.sequence));
-          printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
-        }
-        printf("sending sequence data\n")
-        mode = send; // ensure in send mode
-        // send the big data array
-        memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_obj.sequence, send_data_size);
-        packet_length = data;
-        // test pairing
-        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
-        // trigger send threead
-        time1 = PT_GET_TIME_usec();
-        PT_SEM_SIGNAL(pt, &new_udp_send_s);
-        PT_YIELD(pt);
-
         mode = echo;
+        memset(send_data, 0, sizeof(data_obj.sequence));
+        printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
       }
     }
     PT_YIELD(pt);
@@ -848,6 +765,7 @@ int main()
   // =======================
   // init the serial
   stdio_init_all();
+  //initVGA();
 
   init_buttons();
   init_leds();
@@ -861,16 +779,16 @@ int main()
   // =====================================
   // initizalize the DAC and SPI
   //
-  // spi_init(SPI_PORT, 20000000);
-  // spi_set_format(SPI_PORT, 16, 0, 0, 0);
-  // gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
-  // gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
-  // gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
-  // gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
+  spi_init(SPI_PORT, 20000000);
+  spi_set_format(SPI_PORT, 16, 0, 0, 0);
+  gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
+  gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
+  gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
+  gpio_set_function(PIN_CS, GPIO_FUNC_SPI);
 
-  // gpio_init(LDAC);
-  // gpio_set_dir(LDAC, GPIO_OUT);
-  // gpio_put(LDAC, 0);
+  gpio_init(LDAC);
+  gpio_set_dir(LDAC, GPIO_OUT);
+  gpio_put(LDAC, 0);
 
   // =======================
   // init the wifi network
