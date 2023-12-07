@@ -163,6 +163,9 @@ struct PSData
   int lives;
 };
 
+int player;
+int otherPlayer;
+
 struct PSData data_obj;
 struct PSData received_data_obj;
 
@@ -460,36 +463,55 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     // if not a command, then unformatted data
     else if (mode == echo)
     {
-      // get the binary array
-      memcpy(received_data_obj.sequence, recv_data, send_data_size);
-      // send timing ack
-      memset(send_data, 0, UDP_MSG_LEN_MAX);
-      sprintf(send_data, "ack");
-      packet_length = ack;
-      // tell send threead
-      PT_SEM_SIGNAL(pt, &new_udp_send_s);
-      PT_YIELD(pt);
-      // print received data
-      printf("got -- ");
-      for (int i = 0; i < data_size; i++)
+      // get the binary array depending on game state
+      if (start_game)
       {
-        printf("%d  ", received_data_obj.sequence[i]);
-        sequenceLED(received_data_obj.sequence[i]);
-      }
+        memcpy(received_data_obj.sequence, recv_data, send_data_size);
 
-      // i think here we can check if data received shows that the opponent didn't get it correct
-      if (received_data_obj.sequence[0] == 0) // incorrect sequence
-      {
-        otherLives--;
-        // reset send sequence
+        // send timing ack
         memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_obj.sequence, send_data_size);
+        sprintf(send_data, "ack");
+        packet_length = ack;
+        // tell send threead
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+        // print received data
+        printf("got -- ");
+        for (int i = 0; i < data_size; i++)
+        {
+          printf("%d  ", received_data_obj.sequence[i]);
+          sequenceLED(received_data_obj.sequence[i]);
+        }
+
+        // i think here we can check if data received shows that the opponent didn't get it correct
+        if (received_data_obj.sequence[0] == 0) // incorrect sequence
+        {
+          otherLives--;
+          // reset send sequence
+          memset(send_data, 0, UDP_MSG_LEN_MAX);
+          memcpy(send_data, data_obj.sequence, send_data_size);
+        }
+
+        // regardless we need to switch roles and send data
+
+        // set to send mode
+        mode = send;
       }
-
-      // regardless we need to switch roles and send data
-
-      // set to send mode
-      mode = send;
+      else // game hasn't started yet and need to determine who is player 1 and player 2
+      {
+        memcpy(otherPlayer, recv_data, send_data_size);
+        if (otherPlayer == 2)
+        {
+          player = 1;
+          mode = send;
+        }
+        else
+        {
+          player = 2;
+          mode = echo;
+        }
+        start_game = true;
+      }
 
       printf("\n\r");
     }
@@ -687,7 +709,7 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
   static unsigned long last_button_press_time = 0;
   while (1)
   {
-    if (mode == send)
+    if (mode == send && start_game)
     {
       bool send_signal = false;
       int sequenceLength = getSequenceLength(data_obj.sequence);
@@ -726,7 +748,7 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         // Reset the entire sequence being sent
         resetSequence(data_obj.sequence);
       }
-      else if (gpio_get(SEND_BUTTON_PIN) == 0)
+      else if (gpio_get(SEND_BUTTON) == 0)
       {
         // Allow the data to be sent
         send_signal = true;
@@ -762,11 +784,72 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
       }
     }
+    else
+    {
+      if (gpio_get(RESET_BUTTON) == 0)
+      {
+        start_game = true;
+
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        memcpy(send_data, 1, send_data_size);
+        player = 1;
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+      }
+      else if (gpio_get(SEND_BUTTON) == 0)
+      {
+        start_game = true;
+
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        memcpy(send_data, 2, send_data_size);
+        player = 2;
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        // trigger send threead
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+      }
+    }
     PT_YIELD(pt);
   }
 
   PT_END(pt);
 }
+
+void drawLoadingScreen()
+{
+  setTextSize(40);
+  setTextColor("white");
+  writeString("Welcome to Pico Says!\n\r");
+  writeString("By Michael Liang and Chimdi Anude\n\r");
+  writeString("Press the bottom left button to start\n\r");
+  writeString("How to Play:\n\r");
+  // =======================
+  drawRect(200, -300, 640, 300, "white"); // breadboard
+  drawCircle(250, -350, 100, "red");
+  drawCircle(300, -350, 100, "green");
+  drawCircle(350, -350, 100, "yellow");
+  drawCircle(400, -350, 100, "blue");
+
+  drawRect(250, -350, 100, 100, "red"); // buttons
+  drawRect(300, -350, 100, 100, "green");
+  drawRect(350, -350, 100, 100, "yellow");
+  drawRect(400, -350, 100, 100, "blue");
+
+  drawRect(275, -350, 100, 100, "white"); // reset
+  drawRect(375, -350, 100, 100, "white")  // send
+}
+
+// while loop to check and wait until game starts
+bool start_game = false;
 
 // ====================================================
 int main()
@@ -774,7 +857,9 @@ int main()
   // =======================
   // init the serial
   stdio_init_all();
-  // initVGA();
+  initVGA();
+
+  drawLoadingScreen();
 
   init_buttons();
   init_leds();
@@ -829,12 +914,7 @@ int main()
   // set up UDP recenve ISR handler
   udpecho_raw_init();
 
-  data_obj.player = 2;
-  data_obj.sequence[0] = 3;
-  data_obj.sequence[1] = 4;
-  data_obj.lives = 3;
-
-  printf("initialized player 1");
+  data_obj.sequence[0] = 0;
 
   PT_SEM_INIT(&new_udp_send_s, 0);
   PT_SEM_INIT(&new_udp_recv_s, 0);
@@ -853,5 +933,6 @@ int main()
   pt_schedule_start;
 
   cyw43_arch_deinit();
+
   return 0;
 }
