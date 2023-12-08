@@ -88,6 +88,7 @@
 #include "button.h"
 #include "led.h"
 #include "vga_graphics.h"
+
 // #include "RED.h"
 // #include "BLUE.h"
 // #include "GREEN.h"
@@ -166,6 +167,17 @@ struct PSData
 struct PSData data_obj;
 struct PSData received_data_obj;
 
+int moveSequence;
+
+uint8_t player;
+int otherPlayer;
+
+
+// while loop to check and wait until game starts
+bool start_game = false;
+bool end_game = false;
+bool your_turn;
+
 enum LEDPinMap
 {
   RED_LED = 1,
@@ -173,6 +185,9 @@ enum LEDPinMap
   YELLOW_LED = 3,
   GREEN_LED = 2
 };
+
+bool playerWon = false;
+bool otherPlayerWon = false;
 
 // the following MUST be less than or equal to:
 // UDP_MSG_LEN_MAX
@@ -289,9 +304,177 @@ bool compare_sequences(const int *seq1, const int *seq2)
   return true;
 }
 
+
+int getSequenceLength(const int *seq)
+{
+  int length = 0;
+  // first index in data obj defines the move count
+  for (int i = 1; i < MAX_SEQUENCE_LENGTH; i++)
+  {
+    if (seq[i] == 0)
+    {
+      return length;
+    }
+    length++;
+  }
+  return length;
+}
+
+
+
 #define INITIAL_LIVES 3
 static int lives = INITIAL_LIVES;
 static int otherLives = INITIAL_LIVES;
+
+char screentext[40];
+
+void drawEndingScreen() {
+  fillRect(0,0,760,600, BLACK);
+  if (playerWon) {
+    setCursor(250, 150);
+    setTextSize(3);
+    writeString("CONGRATS!");
+    setCursor(300, 200);
+    writeString("You have won the game and are officially a Pico Says WIZARD!");
+  } else if (otherPlayerWon) {
+    setCursor(250, 150);
+    setTextSize(3);
+    writeString("UNFORTUNATE! :(");
+    setCursor(310, 200);
+    writeString("You have lost the game. I guess better luck next time :p");
+  }
+  }
+
+
+}
+
+void drawPlayerTurn() {
+  fillRect(150, 80, 600, 150, BLACK);
+  setTextSize(2);
+  setCursor(240, 80);
+  setTextColor(WHITE);
+  printf("Drawing Player Turn");
+  if (your_turn) {
+    writeString("It's your turn!");
+    setCursor(150, 110);
+    setTextSize(1);
+    writeString("Enter the last sequence, then add the next item in sucession.");
+  } else {
+    writeString("You're receiving!");
+    setCursor(180, 110);
+    setTextSize(1);
+    writeString("Wait for the other player to enter the sequence!");
+  }
+}
+
+void drawEnteredSequence(const int *seq) {
+
+  fillRect(50, 250, 400, 100, BLACK);
+  setTextSize(1);
+  setCursor(50, 250);
+  writeString("Entered Sequence: ");
+  int len =getSequenceLength(seq);;
+  for (int i=0; i < len; i++) {
+    int seqValue = data_obj.sequence[i + 1];
+    if (seqValue != 0) {
+      char color = seqValue == 1 ? RED : seqValue == 2 ? GREEN : seqValue == 3 ? YELLOW : BLUE;
+      fillCircle((i * 30) + 120, 280, 10, color);
+    }
+  }
+
+}
+
+void drawCorrectSequence(const int *seq) {
+
+  fillRect(50, 350, 400, 100, BLACK);
+  setTextSize(1);
+  setCursor(50, 350);
+  writeString("Correct Sequence: ");
+  int len =getSequenceLength(seq);;
+  for (int i=0; i < len; i++) {
+    int seqValue = data_obj.sequence[i + 1];
+    if (seqValue != 0) {
+      char color = seqValue == 1 ? RED : seqValue == 2 ? GREEN : seqValue == 3 ? YELLOW : BLUE;
+      fillCircle((i * 20) + 120, 380, 10, color);
+    }
+  }
+
+  setCursor(80, 420);
+  setTextSize(2);
+  writeString("Click on the RESET/SEND to continue to new game!");
+
+}
+
+void drawPlayerScreen() {
+  fillRect(0,0,760,600, BLACK);
+
+  setTextColor(WHITE);
+  setCursor(60, 40);
+  setTextSize(2);
+  sprintf(screentext, "You are Player %d    |", player);
+  writeString(screentext);
+  drawLives(lives, 430, 40);
+
+}
+
+void drawLoadingScreen()
+{
+
+  fillRect(0,0,760,600, BLACK);
+  setCursor(130, 40);
+  setTextSize(3);
+  setTextColor(WHITE);
+  writeString("Welcome to Pico Says!\n\r");
+
+  setCursor(240, 75);
+  setTextSize(1); 
+  writeString("By Michael Liang and Chimdi Anude\n\r");
+
+  setTextSize(2);
+  setCursor(105, 130);
+  writeString("Press RESET for P1, or SEND for P2.\n\r");
+
+  // =======================
+  fillRect(140, 200, 380, 230, WHITE); // breadboard
+  fillCircle(210, 240, 15, RED);
+  fillCircle(290, 240, 15, GREEN);
+  fillCircle(370, 240, 15, YELLOW);
+  fillCircle(450, 240, 15, BLUE);
+
+  setTextColor(BLACK);
+
+  setTextSize(1);
+  setCursor(195, 290);
+  writeString("RED BTN");
+  setCursor(275, 290);
+  writeString("GREEN BTN");
+  setCursor(355, 290);
+  writeString("YEL BTN");
+  setCursor(415, 290);
+  writeString("BLUE BTN");
+
+  fillRect(200, 300, 25, 25, BLACK); // buttons
+  fillRect(280, 300, 25, 25, BLACK);
+  fillRect(360, 300, 25, 25, BLACK);
+  fillRect(430, 300, 25, 25, BLACK);
+  
+  fillCircle(212, 312, 5, RED);
+  fillCircle(292, 312, 5, GREEN);
+  fillCircle(372, 312, 5, YELLOW);
+  fillCircle(442, 312, 5, BLUE);
+
+  setCursor(245, 360);
+  writeString("RESET\n\r");
+  setCursor(405, 360);
+  writeString("SEND\n\r");
+  fillRect(245, 370, 25, 25, BLACK); // reset
+  fillRect(405, 370, 25, 25, BLACK);  // send
+
+  fillCircle(257, 382, 5, WHITE);
+  fillCircle(417, 382, 5, WHITE);
+}
+
+
 
 // =======================================
 // UDP send thead
@@ -384,6 +567,7 @@ static PT_THREAD(protothread_udp_send(struct pt *pt))
 // ==================================================
 // udp recv processing
 // ==================================================
+
 static PT_THREAD(protothread_udp_recv(struct pt *pt))
 {
   PT_BEGIN(pt);
@@ -408,6 +592,9 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     strcpy(arg3, token);
     token = strtok(NULL, "  ");
     strcpy(arg4, token);
+
+
+  
 
     // is this a pairing packet (starts with IP)
     // if so, parse address
@@ -461,45 +648,124 @@ static PT_THREAD(protothread_udp_recv(struct pt *pt))
     // if not a command, then unformatted data
     else if (mode == echo)
     {
-      // get the binary array
-      memcpy(received_data_obj.sequence, recv_data, send_data_size);
-      // send timing ack
-      memset(send_data, 0, UDP_MSG_LEN_MAX);
-      sprintf(send_data, "ack");
-      packet_length = ack;
-      // tell send threead
-      PT_SEM_SIGNAL(pt, &new_udp_send_s);
-      PT_YIELD(pt);
-      // print received data
-      printf("got -- ");
-      for (int i = 0; i < data_size; i++)
+      // get the binary array depending on game state
+      if (start_game)
       {
-        printf("%d  ", received_data_obj.sequence[i]);
-        sequenceLED(received_data_obj.sequence[i]);
-      }
+        memcpy(received_data_obj.sequence, recv_data, send_data_size);
 
-      // i think here we can check if data received shows that the opponent didn't get it correct
-      if (received_data_obj.sequence[0] == 0) // incorrect sequence
-      {
-
-        otherLives--;
-        // reset send sequence
+        // send timing ack
         memset(send_data, 0, UDP_MSG_LEN_MAX);
-        memcpy(send_data, data_obj.sequence, send_data_size);
+        sprintf(send_data, "ack");
+        packet_length = ack;
+        // tell send threead
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+        // print received data
+        printf("got -- ");
+        for (int i = 1; i < data_size; i++)
+        { 
+          if (received_data_obj.sequence[i] !=0) {
+            printf("%d  ", received_data_obj.sequence[i]);
+            sequenceLED(received_data_obj.sequence[i]);
+
+          }
+        }
+
+        // i think here we can check if data received shows that the opponent didn't get it correct
+        if (received_data_obj.sequence[0] == 0) // incorrect sequence
+        {
+          otherLives--; // tracker to know when game has ended!
+          // reset send sequence
+
+          data_obj.sequence[i] = 0;
+          //reset sequence
+          for (int i = 1; i < 16; i++)
+          {
+            data_obj.sequence[i] = 0;
+          }
+
+          if (otherLives == 0) {
+            playerWon = true;
+            end_game = true;
+            start_game = false;
+          }
+
+          //other player entered data incorrectly but redraw screen
+
+          drawPlayerScreen();
+          drawPlayerTurn();
+          memset(send_data, 0, UDP_MSG_LEN_MAX);
+          memcpy(send_data, data_obj.sequence, send_data_size);
+        }
+
+        // regardless we need to switch roles and send data
+
+        mode = send;
+        your_turn = true;
+
+        moveSequence++; // add move sequence
+        data_obj.sequence[0] = moveSequence;
+
+        
+        drawPlayerTurn();
+        // set to send mode
+        printf("finished receiving, switching to send");
       }
+      else // game hasn't started yet and need to determine who is player 1 and player 2
+      {
+        memcpy(received_data_obj.sequence, recv_data, send_data_size); 
 
-      // regardless we need to switch roles and send data
+        // send timing ack
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        sprintf(send_data, "ack");
+        packet_length = ack;
+        // tell send threead
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
 
-      // set to send mode
-      mode = send;
+        printf("got player data -- ");
+        // print received data
+
+        printf("%d  ", received_data_obj.sequence[0]);
+
+        otherPlayer = received_data_obj.sequence[0];
+  
+
+        if (otherPlayer == 2)
+        {
+          player = 1;
+          your_turn = true;
+          printf("finished setting player 1, switching to send");
+          mode = send;
+          start_game = true;
+          
+        }
+        else if (otherPlayer == 1)
+        {
+          player = 2;
+          your_turn = false;
+          printf("finished setting player 2, switching to recv");
+          mode = echo;
+          start_game = true;
+         
+        }
+        
+        if (start_game) {
+          drawPlayerScreen(); // draws screen for player on receiving player communication end
+          drawPlayerTurn();
+        }
+
+      
+      }
 
       printf("\n\r");
     }
+
+    
     // NEVER exit while
   } // END WHILE(1)
   PT_END(pt);
 } // recv thread
-
 // ==================================================
 // toggle cyw43 LED
 // this is really just a test of multitasking
@@ -659,19 +925,6 @@ static PT_THREAD(protothread_serial(struct pt *pt))
   PT_END(pt);
 }
 
-int getSequenceLength(const int *seq)
-{
-  int length = 0;
-  for (int i = 0; i < MAX_SEQUENCE_LENGTH; i++)
-  {
-    if (seq[i] == 0)
-    {
-      return length;
-    }
-    length++;
-  }
-  return length;
-}
 
 // Thread to handle button presses and signal data transmission
 static PT_THREAD(protothread_signal_button(struct pt *pt))
@@ -681,64 +934,117 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
   static unsigned long last_button_press_time = 0;
   while (1)
   {
-    if (mode == send)
+    if (mode == send && start_game && !end_game)
     {
-      bool button_clicked = false;
+      bool send_signal = false;
       int sequenceLength = getSequenceLength(data_obj.sequence);
       /**
-      unsigned long current_time = millis(); // Assuming you have a function to get current time in milliseconds
-
+      unsigned long current_time = millis(); // Assuming you have a function to get current time in millisecond
       // Check for button press with debouncing
-      
+
       if (current_time - last_button_press_time > DEBOUNCE_TIME)
       {
         */
-        if (gpio_get(RED_BUTTON_PIN) == 0)
+
+       // if player already entered move then they cannot move again
+       // either reset or send signal
+      if (sequenceLength < moveSequence) {
+        if (gpio_get(RED_BUTTON_PIN) == 0 )
         {
           data_obj.sequence[sequenceLength + 1] = 1;
           light_led(RED_LED_PIN);
-          redSound();
-          button_clicked = true;
+          drawEnteredSequence(data_obj.sequence);
+          //redSound();
         }
         else if (gpio_get(GREEN_BUTTON_PIN) == 0)
         {
           data_obj.sequence[sequenceLength + 1] = 2;
           light_led(GREEN_LED_PIN);
-          greenSound();
-          button_clicked = true;
+          drawEnteredSequence(data_obj.sequence);
+          //greenSound();
         }
         else if (gpio_get(YELLOW_BUTTON_PIN) == 0)
         {
           data_obj.sequence[sequenceLength + 1] = 3;
           light_led(YELLOW_LED_PIN);
-          yellowSound();
-          button_clicked = true;
+          drawEnteredSequence(data_obj.sequence);
+          //yellowSound();
         }
         else if (gpio_get(BLUE_BUTTON_PIN) == 0)
         {
           data_obj.sequence[sequenceLength + 1] = 4;
           light_led(BLUE_LED_PIN);
-          blueSound();
-          button_clicked = true;
+          drawEnteredSequence(data_obj.sequence);
+          //blueSound();
         }
 
-        // if (button_clicked)
-        // {
-        //   last_button_press_time = current_time;
-        // }
-      
+        
+      }
+
+      // Check for the state of the reset and send buttons
+      if (gpio_get(RESET_BUTTON) == 0)
+      {
+
+        for (int i = 1; i < 16; i++)
+        {
+          data_obj.sequence[i] = 0;
+        }
+        drawEnteredSequence(data_obj.sequence); // reset drawn player sequence
+      }
+      else if (gpio_get(SEND_BUTTON) == 0)
+      {
+        // Allow the data to be sent but check sequence length first
+        sequenceLength = getSequenceLength(data_obj.sequence);
+        if (moveSequence == sequenceLength) { // moves eqs sequence so there aren't extra sent
+          send_signal = true;
+          moveSequence++;
+          data_obj.sequence[0] = moveSequence;
+        }
+        drawEnteredSequence(data_obj.sequence); // update player sequence
+      }
+
       // Only proceed to send data if a button has been clicked
-      if (button_clicked)
+      if (send_signal)
       {
         // once sequence is added, check itself whether it sent the right seq
         if (!compare_sequences(data_obj.sequence, received_data_obj.sequence))
         {
           lives--;
+          moveSequence = 1; // reset move sequence
+          printf("lost life\n");
+          
 
-          // zero the sent data array to show that user entered sequence incorrectly
-          memset(send_data, 0, sizeof(data_obj.sequence));
-          printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
+          if (lives == 0) {
+            end_game = true;
+            otherPlayerWon = true;
+            playerWon = false;
+            start_game = false;
+          }
+          else {
+          setCursor(300, 145);
+          setTextSize(2);
+          writeString("Sequence incorrect :( ! ");
+
+          drawCorrectSequence(received_data_obj.sequence);
+          
+          while (gpio_get(RESET_BUTTON) == 1 && gpio_get(SEND_BUTTON) == 1) {
+            sleep_ms(1000);
+          }
+
+          drawPlayerScreen(); // reset screen
+          drawPlayerTurn();
+
+
+          data_obj.sequence[0] = 0;
+          }
         }
+
+
+        setCursor(300, 145);
+        setTextSize(2);
+        writeString("Sequence correct :) ! ");
+
+
         printf("sending sequence data\n");
         mode = send; // ensure in send mode
         // send the big data array
@@ -752,10 +1058,77 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
         PT_SEM_SIGNAL(pt, &new_udp_send_s);
         PT_YIELD(pt);
 
+        printf("finished sending sequence, switching to recv");
         mode = echo;
+        your_turn = false;
+        drawPlayerTurn();
         memset(send_data, 0, sizeof(data_obj.sequence));
         printf("%d -- zeroed data array \n\r", data_obj.sequence[15]);
       }
+    }
+    else if (start_game == false)
+    {
+      if (gpio_get(RESET_BUTTON) == 0)
+      {
+        printf("reset button pressed - player 1\n");
+        sleep_ms(1000);
+        start_game = true;
+        printf("starting game\n");
+
+        // reset send data array
+        memset(send_data, 0, 4);
+        printf("zeroed data array \n\r");
+
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        data_obj.sequence[0] = 1;  
+        memcpy(send_data, data_obj.sequence, send_data_size);
+        player = 1;
+        your_turn = true;
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+      }
+      else if (gpio_get(SEND_BUTTON) == 0)
+      {
+        printf("send button pressed - player 2\n");
+        start_game = true;
+        printf("starting game\n");
+        sleep_ms(1000);
+
+        // reset send data array
+        memset(send_data, 0, 4);
+        printf("zeroed data array \n\r");
+
+        mode = send; // ensure in send mode
+        // send the big data array
+        memset(send_data, 0, UDP_MSG_LEN_MAX);
+        data_obj.sequence[0] = 2;
+        memcpy(send_data, data_obj.sequence, send_data_size);
+        player = 2;
+        your_turn = false;
+        packet_length = data;
+        // test pairing
+        printf("sendto IP %s paired=%d\n", udp_target_pico, paired);
+        // trigger send threead
+        // given this pico selected p2 then we need to change it to recv mode
+        PT_SEM_SIGNAL(pt, &new_udp_send_s);
+        PT_YIELD(pt);
+
+        mode = echo;
+      }
+
+      if (start_game) {
+        drawPlayerScreen();
+        drawPlayerTurn();
+      }
+    } else if (end_game == true) {
+
+
+
     }
     PT_YIELD(pt);
   }
@@ -763,29 +1136,33 @@ static PT_THREAD(protothread_signal_button(struct pt *pt))
   PT_END(pt);
 }
 
+
+
+
 // ====================================================
 int main()
 {
   // =======================
   // init the serial
   stdio_init_all();
-  //initVGA();
+  initVGA();
+  
+  setTextColor(WHITE);
 
+  setTextSize(1);
+ drawLoadingScreen();
+  
+  //init buttons and leds
   init_buttons();
   init_leds();
-  light_led(RED_LED_PIN);
 
-  light_led(RED_LED_PIN);
-  light_led(GREEN_LED_PIN);
-  light_led(YELLOW_LED_PIN);
-  light_led(RED_LED_PIN);
+
 
   // =====================================
   // initizalize the DAC and SPI
   //
   spi_init(SPI_PORT, 20000000);
   spi_set_format(SPI_PORT, 16, 0, 0, 0);
-  
   gpio_set_function(PIN_MISO, GPIO_FUNC_SPI);
   gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
   gpio_set_function(PIN_MOSI, GPIO_FUNC_SPI);
@@ -825,12 +1202,8 @@ int main()
   // set up UDP recenve ISR handler
   udpecho_raw_init();
 
-  data_obj.player = 2;
-  data_obj.sequence[0] = 3;
-  data_obj.sequence[1] = 4;
-  data_obj.lives = 3;
-
-  printf("initialized player 1");
+  data_obj.sequence[0] = 0;
+  moveSequence = 1;
 
   PT_SEM_INIT(&new_udp_send_s, 0);
   PT_SEM_INIT(&new_udp_recv_s, 0);
@@ -849,5 +1222,6 @@ int main()
   pt_schedule_start;
 
   cyw43_arch_deinit();
+
   return 0;
 }
